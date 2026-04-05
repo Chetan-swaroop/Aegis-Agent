@@ -13,14 +13,15 @@ load_dotenv()
 # Set to '0' for production (Render), '1' for local testing
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '0'
 
+# AI Setup
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 ai_model = genai.GenerativeModel('models/gemini-flash-latest')
 
 app = FastAPI(title="Aegis-Agent")
 
-# --- MIDDLEWARE (ORDER MATTERS) ---
+# --- MIDDLEWARE (ORDER IS CRITICAL) ---
 
-# 1. CORS Middleware First
+# 1. CORS First: To handle cross-origin requests from the browser
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://aegis-agent-2.onrender.com"],
@@ -29,15 +30,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 2. Session Middleware Second (THIS WAS MISSING)
+# 2. Session Second: To provide request.session
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.getenv("AUTH0_SECRET"), # Ensure this key is in Render Env
+    secret_key=os.getenv("AUTH0_SECRET"),
     session_cookie="aegis_session",
     same_site="lax",
-    https_only=True # Must be True for Render/HTTPS
+    https_only=True # Render uses HTTPS, so this must be True
 )
 
+# OAuth Setup
 oauth = OAuth()
 oauth.register(
     "auth0",
@@ -71,13 +73,26 @@ async def get_github_token(user_id: str):
     return None
 
 # --- ROUTES ---
-@app.get("/ui")
-def serve_ui():
-    return FileResponse("../frontend/index.html")
 
 @app.get("/")
+def root_redirect():
+    """Redirect main URL to UI so judges don't see a 401 error."""
+    return RedirectResponse(url="/ui")
+
+@app.get("/ui")
+def serve_ui():
+    """Serves the frontend. Note: Path adjusted for standard Render deployment."""
+    # On Render, if your backend is in /backend and frontend is in /frontend:
+    # Use the absolute path from the project root if '../' fails.
+    path = os.path.join(os.getcwd(), "frontend", "index.html")
+    if not os.path.exists(path):
+        # Fallback for local folder structure
+        path = "../frontend/index.html"
+    return FileResponse(path)
+
+@app.get("/status")
 def check_status(request: Request):
-    # This will now work because SessionMiddleware is installed
+    """Check if user is logged in."""
     user = request.session.get("user")
     if user:
         return {"status": "logged_in", "name": user["name"]}
@@ -86,7 +101,9 @@ def check_status(request: Request):
 @app.get("/login")
 async def login(request: Request):
     return await oauth.auth0.authorize_redirect(
-        request, redirect_uri=os.getenv("AUTH0_CALLBACK_URL"), connection="github"
+        request, 
+        redirect_uri=os.getenv("AUTH0_CALLBACK_URL"), 
+        connection="github"
     )
 
 @app.get("/callback")
@@ -120,6 +137,7 @@ async def ask_agent(request: Request, prompt: str):
     
     ai_resp = ai_model.generate_content(context + "\nUser Request: " + prompt).text
 
+    # Action Logic
     if "ACTION: CREATE_ISSUE" in ai_resp:
         try:
             parts = ai_resp.split("|")
@@ -138,7 +156,7 @@ async def ask_agent(request: Request, prompt: str):
                     "execution_trace": issue.json().get("html_url"),
                     "reasoning_trace": ai_resp
                 }
-        except:
+        except Exception:
             return {"error": "Aegis-Agent encountered an error parsing the execution command."}
 
     return {"agent_response": ai_resp}
