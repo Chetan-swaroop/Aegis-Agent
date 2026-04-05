@@ -8,7 +8,7 @@ from authlib.integrations.starlette_client import OAuth
 from starlette.middleware.sessions import SessionMiddleware
 
 load_dotenv()
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '0'
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 ai_model = genai.GenerativeModel('models/gemini-flash-latest')
@@ -20,7 +20,7 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("AUTH0_SECRET"),
     same_site="lax",
-    https_only=False
+    https_only=True
 )
 
 oauth = OAuth()
