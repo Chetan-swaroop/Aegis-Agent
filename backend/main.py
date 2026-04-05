@@ -12,6 +12,9 @@ from fastapi.middleware.cors import CORSMiddleware
 if not os.environ.get("RENDER"):
     load_dotenv()
 
+# Now os.getenv will correctly grab the Render Dashboard values
+callback_url = os.getenv("AUTH0_CALLBACK_URL")
+
 # Set to '0' for production (Render), '1' for local testing
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '0'
 
