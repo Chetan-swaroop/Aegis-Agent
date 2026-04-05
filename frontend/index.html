@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Aegis-Agent | Secure AI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --accent: #8b5cf6;
+            --bg: #0f172a;
+            --card: rgba(30, 41, 59, 0.7);
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            background-image: radial-gradient(circle at top right, #1e293b, #0f172a);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: var(--card);
+            backdrop-filter: blur(12px);
+            padding: 40px;
+            border-radius: 24px;
+            width: 100%;
+            max-width: 600px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        h1 { 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            background-clip: text; /* Compatibility Fix */
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px; 
+            font-size: 2.8rem; 
+            font-weight: 800;
+        }
+
+        /* Prevent icon from being transparent/gradient */
+        h1 i {
+            -webkit-text-fill-color: initial;
+            color: var(--primary);
+        }
+        
+        .subtitle { color: #94a3b8; margin-bottom: 20px; font-weight: 500; }
+
+        /* The Glowing Input Box */
+        .glow-wrapper {
+            position: relative;
+            margin: 30px 0;
+            padding: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--accent), var(--primary));
+            background-size: 200% 200%;
+            border-radius: 14px;
+            animation: moveGlow 3s linear infinite;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+        }
+
+        @keyframes moveGlow {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+
+        input {
+            width: 100%;
+            padding: 16px;
+            background: #0f172a;
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 1.1rem;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .btn {
+            padding: 16px 30px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 100%;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary { 
+            background: var(--primary); 
+            color: white; 
+            box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.39);
+        }
+        
+        .btn-primary:hover { 
+            background: #2563eb; 
+            transform: translateY(-2px); 
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.23);
+        }
+
+        #output {
+            margin-top: 25px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: left;
+            min-height: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            line-height: 1.6;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+
+        .agent-label { color: var(--primary); font-weight: bold; margin-bottom: 5px; display: block; }
+        .success-text { color: #22c55e; font-weight: bold; }
+        .hidden { display: none; }
+        
+        /* Status Dot with Pulse Animation */
+        .status-dot {
+            height: 10px;
+            width: 10px;
+            background-color: #22c55e;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+            box-shadow: 0 0 8px #22c55e;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>
+        <i class="fas fa-robot"></i>
+        <span>Aegis-Agent</span>
+    </h1>
+    <p class="subtitle">Secure Identity Vault • Powered by Auth0</p>
+
+    <div id="auth-section">
+        <p style="margin-bottom: 20px; color: #cbd5e1;">Please establish a secure session via GitHub.</p>
+        <button class="btn btn-primary" onclick="location.href='/login'">Establish Identity</button>
+    </div>
+
+    <div id="agent-section" class="hidden">
+        <p id="status" style="color: #22c55e; font-weight: bold; font-size: 0.9rem;">
+            <span class="status-dot"></span> Authorized Access Active
+        </p>
+        
+        <div class="glow-wrapper">
+            <input id="prompt" placeholder="Request repository execution..." autocomplete="off">
+        </div>
+
+        <button class="btn btn-primary" id="exec-btn" onclick="runAgent()">Execute Secure Action</button>
+        
+        <div id="loading" class="hidden" style="margin-top: 15px; color: #60a5fa; font-weight: 600;">
+            ⏳ Aegis is reasoning...
+        </div>
+        <div id="output">_ System Standby. Waiting for intent...</div>
+    </div>
+</div>
+
+<script>
+    // 1. Check Status on load
+    fetch("/", { credentials: "include" })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === "logged_in") {
+            document.getElementById("auth-section").classList.add("hidden");
+            document.getElementById("agent-section").classList.remove("hidden");
+            document.getElementById("status").innerHTML = `<span class="status-dot"></span> Identity Confirmed: ${data.name}`;
+        }
+    });
+
+    // 2. Add 'Enter' key support
+    document.getElementById("prompt").addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            runAgent();
+        }
+    });
+
+    // 3. Agent Execution Logic
+    function runAgent() {
+        const promptInput = document.getElementById("prompt");
+        const out = document.getElementById("output");
+        const load = document.getElementById("loading");
+        const btn = document.getElementById("exec-btn");
+
+        if (!promptInput.value) return;
+
+        // Visual Feedback
+        load.classList.remove("hidden");
+        btn.disabled = true;
+        btn.style.opacity = "0.7";
+        out.innerHTML = `<span style="color: #94a3b8">> Initiating secure handshake...</span>`;
+
+        fetch(`/ask-agent?prompt=${encodeURIComponent(promptInput.value)}`, { credentials: "include" })
+        .then(res => res.json())
+        .then(data => {
+            load.classList.add("hidden");
+            btn.disabled = false;
+            btn.style.opacity = "1";
+            out.innerHTML = ""; 
+
+            if (data.status === "success") {
+                out.innerHTML = `<span class="success-text">[✔] EXECUTION SUCCESSFUL</span><br>
+                                 <small style="color:#94a3b8">Trace: ${data.reasoning_trace}</small><br><br>
+                                 <a href="${data.execution_trace}" target="_blank" style="color:#3b82f6; text-decoration:none; font-weight:bold; border: 1px solid #3b82f6; padding: 5px 10px; border-radius: 5px;">👉 View Created Issue</a>`;
+            } else if (data.agent_response) {
+                out.innerHTML = `<span class="agent-label">[AEGIS-RESPONSE]:</span> ${data.agent_response}`;
+            } else {
+                out.innerHTML = `<span style="color: #f87171;">[ERROR]:</span> ${data.error || "Execution failed."}`;
+            }
+        })
+        .catch(err => {
+            load.classList.add("hidden");
+            btn.disabled = false;
+            btn.style.opacity = "1";
+            out.innerHTML = `<span style="color: #f87171;">[FATAL]: Connection to identity vault lost.</span>`;
+        });
+    }
+</script>
+</body>
+</html>
