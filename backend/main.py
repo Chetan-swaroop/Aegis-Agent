@@ -6,7 +6,7 @@ from fastapi.responses import RedirectResponse, JSONResponse, FileResponse
 from dotenv import load_dotenv
 from authlib.integrations.starlette_client import OAuth
 from starlette.middleware.sessions import SessionMiddleware
-
+from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '0'
 
@@ -14,13 +14,20 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 ai_model = genai.GenerativeModel('models/gemini-flash-latest')
 
 # --- Update 1: Brand New App Title ---
-app = FastAPI(title="Aegis-Agent | Secure Authorized Execution")
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
+import os
 
+app = FastAPI()
+
+# --- ADD THE PROXY/CORS FIX HERE ---
 app.add_middleware(
-    SessionMiddleware,
-    secret_key=os.getenv("AUTH0_SECRET"),
-    same_site="lax",
-    https_only=True
+    CORSMiddleware,
+    allow_origins=["https://aegis-agent-2.onrender.com"], # Your Render URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 oauth = OAuth()
