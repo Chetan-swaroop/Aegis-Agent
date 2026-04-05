@@ -4,241 +4,480 @@
     <meta charset="UTF-8">
     <title>Aegis-Agent | Secure AI</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
         :root {
-            --primary: #3b82f6;
-            --accent: #8b5cf6;
-            --bg: #0f172a;
-            --card: rgba(30, 41, 59, 0.7);
+            --blue: #3b82f6;
+            --blue-bright: #60a5fa;
+            --violet: #8b5cf6;
+            --violet-bright: #a78bfa;
+            --cyan: #06b6d4;
+            --bg-deep: #020817;
+            --bg-mid: #0a1628;
+            --glass: rgba(14, 30, 60, 0.6);
+            --border: rgba(99,140,255,0.18);
+            --border-bright: rgba(99,140,255,0.4);
+            --text: #e2e8f0;
+            --text-muted: #64748b;
+            --text-dim: #94a3b8;
+            --success: #22c55e;
+            --danger: #f87171;
         }
 
         body {
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background: var(--bg);
-            background-image: radial-gradient(circle at top right, #1e293b, #0f172a);
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg-deep);
+            color: var(--text);
             min-height: 100vh;
-            margin: 0;
-        }
-
-        .container {
-            background: var(--card);
-            backdrop-filter: blur(12px);
-            padding: 40px;
-            border-radius: 24px;
-            width: 100%;
-            max-width: 600px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-
-        h1 { 
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 15px;
-            background: linear-gradient(to right, var(--primary), var(--accent));
-            -webkit-background-clip: text;
-            background-clip: text; /* Compatibility Fix */
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 10px; 
-            font-size: 2.8rem; 
-            font-weight: 800;
+            padding: 24px;
+            overflow-x: hidden;
         }
 
-        /* Prevent icon from being transparent/gradient */
-        h1 i {
-            -webkit-text-fill-color: initial;
-            color: var(--primary);
+        body::before, body::after {
+            content: '';
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.12;
+            pointer-events: none;
+            z-index: 0;
         }
-        
-        .subtitle { color: #94a3b8; margin-bottom: 20px; font-weight: 500; }
+        body::before {
+            width: 600px; height: 600px;
+            background: radial-gradient(circle, var(--violet), transparent);
+            top: -200px; right: -200px;
+            animation: orb1 12s ease-in-out infinite alternate;
+        }
+        body::after {
+            width: 500px; height: 500px;
+            background: radial-gradient(circle, var(--blue), transparent);
+            bottom: -200px; left: -200px;
+            animation: orb2 15s ease-in-out infinite alternate;
+        }
 
-        /* The Glowing Input Box */
-        .glow-wrapper {
+        @keyframes orb1 { 0% { transform: translate(0,0) scale(1); } 100% { transform: translate(60px,80px) scale(1.15); } }
+        @keyframes orb2 { 0% { transform: translate(0,0) scale(1); } 100% { transform: translate(-60px,-60px) scale(1.1); } }
+
+        .grid-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background-image:
+                linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px);
+            background-size: 48px 48px;
+        }
+
+        .wrapper {
             position: relative;
-            margin: 30px 0;
-            padding: 2px;
-            background: linear-gradient(90deg, var(--primary), var(--accent), var(--primary));
-            background-size: 200% 200%;
-            border-radius: 14px;
-            animation: moveGlow 3s linear infinite;
-            box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
-        }
-
-        @keyframes moveGlow {
-            0% { background-position: 0% 50%; }
-            100% { background-position: 200% 50%; }
-        }
-
-        input {
+            z-index: 1;
             width: 100%;
-            padding: 16px;
-            background: #0f172a;
-            border: none;
-            border-radius: 12px;
-            color: white;
-            font-size: 1.1rem;
-            outline: none;
-            box-sizing: border-box;
+            max-width: 560px;
         }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(99,140,255,0.08);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 6px 16px;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--blue-bright);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 28px;
+        }
+        .badge-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 8px var(--success);
+            animation: blink 2s infinite;
+        }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+        .card {
+            background: var(--glass);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 40px 36px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 20%; right: 20%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(139,92,246,0.6), rgba(59,130,246,0.6), transparent);
+        }
+
+        .header { margin-bottom: 32px; }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 10px;
+        }
+
+        .logo-icon {
+            width: 48px; height: 48px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(139,92,246,0.3), rgba(59,130,246,0.3));
+            border: 1px solid var(--border-bright);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .logo-text {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #c4b5fd, #93c5fd);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 0.03em;
+        }
+
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border), transparent);
+            margin: 24px 0;
+        }
+
+        .auth-desc {
+            font-size: 14px;
+            color: var(--text-dim);
+            line-height: 1.7;
+            margin-bottom: 24px;
+        }
+
+        .identity-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(34,197,94,0.07);
+            border: 1px solid rgba(34,197,94,0.2);
+            border-radius: 12px;
+            padding: 10px 16px;
+            margin-bottom: 24px;
+            font-size: 13px;
+            color: #86efac;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .identity-bar .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 10px var(--success);
+            animation: blink 2s infinite;
+            flex-shrink: 0;
+        }
+
+        .input-wrap {
+            position: relative;
+            margin-bottom: 16px;
+        }
+
+        .input-wrap::before {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            border-radius: 15px;
+            background: linear-gradient(135deg, var(--violet), var(--blue), var(--cyan));
+            background-size: 200% 200%;
+            animation: borderShift 4s linear infinite;
+            z-index: 0;
+            opacity: 0.7;
+        }
+
+        @keyframes borderShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .input-inner {
+            position: relative;
+            z-index: 1;
+            background: var(--bg-mid);
+            border-radius: 14px;
+            padding: 14px 16px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text);
+            font-size: 14px;
+            font-family: 'Space Grotesk', sans-serif;
+            caret-color: var(--blue-bright);
+        }
+
+        input[type="text"]::placeholder { color: var(--text-muted); }
 
         .btn {
-            padding: 16px 30px;
+            width: 100%;
+            padding: 14px 20px;
             border-radius: 12px;
             border: none;
             cursor: pointer;
-            font-weight: bold;
-            font-size: 1rem;
-            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            width: 100%;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600;
+            font-size: 14px;
+            letter-spacing: 0.04em;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
         }
 
-        .btn-primary { 
-            background: var(--primary); 
-            color: white; 
-            box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.39);
-        }
-        
-        .btn-primary:hover { 
-            background: #2563eb; 
-            transform: translateY(-2px); 
-            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.23);
+        .btn-primary {
+            background: linear-gradient(135deg, var(--violet), var(--blue));
+            color: white;
         }
 
-        #output {
-            margin-top: 25px;
-            background: rgba(0, 0, 0, 0.4);
-            padding: 20px;
-            border-radius: 12px;
-            text-align: left;
-            min-height: 50px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            line-height: 1.6;
-            font-family: 'Consolas', 'Monaco', monospace;
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 32px rgba(99,102,241,0.35); }
+        .btn-primary:active { transform: translateY(0); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .btn-github {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-bright);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .btn-github:hover {
+            background: rgba(255,255,255,0.09);
+            border-color: rgba(139,92,246,0.5);
+            transform: translateY(-1px);
         }
 
-        .agent-label { color: var(--primary); font-weight: bold; margin-bottom: 5px; display: block; }
-        .success-text { color: #22c55e; font-weight: bold; }
-        .hidden { display: none; }
-        
-        /* Status Dot with Pulse Animation */
-        .status-dot {
-            height: 10px;
-            width: 10px;
-            background-color: #22c55e;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 5px;
-            box-shadow: 0 0 8px #22c55e;
-            animation: pulse 2s infinite;
+        .output-panel {
+            margin-top: 20px;
+            background: rgba(0,0,0,0.35);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
         }
 
-        @keyframes pulse {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        .output-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(255,255,255,0.02);
+        }
+
+        .output-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+        .output-body {
+            padding: 16px;
+            min-height: 80px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12.5px;
+            line-height: 1.75;
+            color: var(--text-dim);
+        }
+
+        .loading-bar {
+            height: 2px;
+            background: linear-gradient(90deg, var(--violet), var(--blue), var(--cyan));
+            background-size: 200% 100%;
+            animation: loadSlide 1.2s linear infinite;
+            border-radius: 2px;
+            margin-bottom: 16px;
+        }
+        @keyframes loadSlide {
+            0% { background-position: 100% 0; }
+            100% { background-position: -100% 0; }
+        }
+
+        .success-tag { color: #4ade80; font-weight: 600; }
+        .error-tag { color: var(--danger); }
+        .label-tag { color: var(--blue-bright); font-weight: 600; }
+
+        .issue-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 10px;
+            padding: 6px 14px;
+            background: rgba(59,130,246,0.1);
+            border: 1px solid rgba(59,130,246,0.3);
+            border-radius: 8px;
+            color: var(--blue-bright);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .issue-link:hover { background: rgba(59,130,246,0.2); }
+
+        .hidden { display: none !important; }
+
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 0.05em;
         }
     </style>
 </head>
 <body>
+<div class="grid-bg"></div>
 
-<div class="container">
-    <h1>
-        <i class="fas fa-robot"></i>
-        <span>Aegis-Agent</span>
-    </h1>
-    <p class="subtitle">Secure Identity Vault • Powered by Auth0</p>
-
-    <div id="auth-section">
-        <p style="margin-bottom: 20px; color: #cbd5e1;">Please establish a secure session via GitHub.</p>
-        <button class="btn btn-primary" onclick="location.href='/login'">Establish Identity</button>
+<div class="wrapper">
+    <div style="text-align:center;">
+        <div class="badge">
+            <span class="badge-dot"></span>
+            secure vault · auth0 powered
+        </div>
     </div>
 
-    <div id="agent-section" class="hidden">
-        <p id="status" style="color: #22c55e; font-weight: bold; font-size: 0.9rem;">
-            <span class="status-dot"></span> Authorized Access Active
-        </p>
-        
-        <div class="glow-wrapper">
-            <input id="prompt" placeholder="Request repository execution..." autocomplete="off">
+    <div class="card">
+        <div class="header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="7" y="9" width="10" height="9" rx="2" stroke="#a78bfa" stroke-width="1.5"/>
+                        <rect x="9" y="11" width="2" height="2" rx="0.5" fill="#60a5fa"/>
+                        <rect x="13" y="11" width="2" height="2" rx="0.5" fill="#60a5fa"/>
+                        <line x1="9" y1="15.5" x2="15" y2="15.5" stroke="#a78bfa" stroke-width="1.2" stroke-linecap="round"/>
+                        <line x1="12" y1="7" x2="12" y2="9" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round"/>
+                        <circle cx="12" cy="6" r="1.2" fill="#60a5fa"/>
+                        <line x1="7" y1="13" x2="5" y2="13" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round"/>
+                        <line x1="17" y1="13" x2="19" y2="13" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="logo-text">Aegis-Agent</div>
+                </div>
+            </div>
+            <div class="subtitle">// identity-secured github execution layer</div>
         </div>
 
-        <button class="btn btn-primary" id="exec-btn" onclick="runAgent()">Execute Secure Action</button>
-        
-        <div id="loading" class="hidden" style="margin-top: 15px; color: #60a5fa; font-weight: 600;">
-            ⏳ Aegis is reasoning...
+        <div class="divider"></div>
+
+        <div id="auth-section">
+            <p class="auth-desc">
+                Establish a cryptographically verified identity via GitHub OAuth before accessing the secure execution layer.
+            </p>
+            <button class="btn btn-github" onclick="location.href='/login'">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+                </svg>
+                Establish Identity via GitHub
+            </button>
         </div>
-        <div id="output">_ System Standby. Waiting for intent...</div>
+
+        <div id="agent-section" class="hidden">
+            <div class="identity-bar">
+                <span class="status-dot"></span>
+                <span id="identity-name">Identity Confirmed</span>
+            </div>
+
+            <div class="input-wrap">
+                <div class="input-inner">
+                    <input type="text" id="prompt" placeholder="Request repository execution or ask anything..." autocomplete="off" />
+                </div>
+            </div>
+
+            <button class="btn btn-primary" id="exec-btn" onclick="runAgent()">
+                Execute Secure Action
+            </button>
+
+            <div class="output-panel">
+                <div class="output-header">
+                    <span class="output-dot" style="background:#f87171"></span>
+                    <span class="output-dot" style="background:#fbbf24"></span>
+                    <span class="output-dot" style="background:#4ade80"></span>
+                    <span style="font-size:11px; color:var(--text-muted); font-family:'JetBrains Mono',monospace; margin-left:6px;">aegis.output</span>
+                </div>
+                <div class="output-body" id="output">
+                    <span style="color:var(--text-muted)">_</span> system standby. waiting for intent...
+                </div>
+            </div>
+        </div>
     </div>
+
+    <div class="footer">aegis-agent · end-to-end encrypted · zero trust</div>
 </div>
 
 <script>
-    // 1. Check Status on load
-    fetch("/", { credentials: "include" })
+    fetch("/status", { credentials: "include" })
     .then(res => res.json())
     .then(data => {
         if (data.status === "logged_in") {
             document.getElementById("auth-section").classList.add("hidden");
             document.getElementById("agent-section").classList.remove("hidden");
-            document.getElementById("status").innerHTML = `<span class="status-dot"></span> Identity Confirmed: ${data.name}`;
+            document.getElementById("identity-name").textContent = "Identity Confirmed: " + data.name;
         }
+    })
+    .catch(() => {});
+
+    document.getElementById("prompt").addEventListener("keypress", function(e) {
+        if (e.key === "Enter") { e.preventDefault(); runAgent(); }
     });
 
-    // 2. Add 'Enter' key support
-    document.getElementById("prompt").addEventListener("keypress", function(event) {
-        if (event.key === "Enter") {
-            event.preventDefault();
-            runAgent();
-        }
-    });
-
-    // 3. Agent Execution Logic
     function runAgent() {
         const promptInput = document.getElementById("prompt");
         const out = document.getElementById("output");
-        const load = document.getElementById("loading");
         const btn = document.getElementById("exec-btn");
+        if (!promptInput.value.trim()) return;
 
-        if (!promptInput.value) return;
-
-        // Visual Feedback
-        load.classList.remove("hidden");
         btn.disabled = true;
-        btn.style.opacity = "0.7";
-        out.innerHTML = `<span style="color: #94a3b8">> Initiating secure handshake...</span>`;
+        out.innerHTML = `<div class="loading-bar"></div><span style="color:var(--text-muted)">initiating secure handshake...</span>`;
 
         fetch(`/ask-agent?prompt=${encodeURIComponent(promptInput.value)}`, { credentials: "include" })
         .then(res => res.json())
         .then(data => {
-            load.classList.add("hidden");
             btn.disabled = false;
-            btn.style.opacity = "1";
-            out.innerHTML = ""; 
-
             if (data.status === "success") {
-                out.innerHTML = `<span class="success-text">[✔] EXECUTION SUCCESSFUL</span><br>
-                                 <small style="color:#94a3b8">Trace: ${data.reasoning_trace}</small><br><br>
-                                 <a href="${data.execution_trace}" target="_blank" style="color:#3b82f6; text-decoration:none; font-weight:bold; border: 1px solid #3b82f6; padding: 5px 10px; border-radius: 5px;">👉 View Created Issue</a>`;
+                out.innerHTML = `<span class="success-tag">✔ EXECUTION SUCCESSFUL</span><br>
+                    <span style="color:var(--text-muted); font-size:11px;">${data.reasoning_trace}</span><br>
+                    <a class="issue-link" href="${data.execution_trace}" target="_blank">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                        View Created Issue
+                    </a>`;
             } else if (data.agent_response) {
-                out.innerHTML = `<span class="agent-label">[AEGIS-RESPONSE]:</span> ${data.agent_response}`;
+                out.innerHTML = `<span class="label-tag">[AEGIS]</span> ${data.agent_response}`;
             } else {
-                out.innerHTML = `<span style="color: #f87171;">[ERROR]:</span> ${data.error || "Execution failed."}`;
+                out.innerHTML = `<span class="error-tag">[ERROR]</span> ${data.error || "Execution failed."}`;
             }
         })
-        .catch(err => {
-            load.classList.add("hidden");
+        .catch(() => {
             btn.disabled = false;
-            btn.style.opacity = "1";
-            out.innerHTML = `<span style="color: #f87171;">[FATAL]: Connection to identity vault lost.</span>`;
+            out.innerHTML = `<span class="error-tag">[FATAL]</span> connection to identity vault lost.`;
         });
     }
 </script>
