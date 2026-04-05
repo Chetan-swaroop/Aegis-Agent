@@ -8,7 +8,9 @@ from authlib.integrations.starlette_client import OAuth
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 
-load_dotenv()
+# Only load .env if we are NOT on Render
+if not os.environ.get("RENDER"):
+    load_dotenv()
 
 # Set to '0' for production (Render), '1' for local testing
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '0'
