@@ -14,9 +14,8 @@ if not os.environ.get("RENDER"):
 
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '0'
 
-# --- Simple, Clean AI Setup (Reverted to Morning Version) ---
+# --- Simple, Clean AI Setup ---
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-# Using 'latest' so you don't get the 404 error again
 ai_model = genai.GenerativeModel('gemini-flash-latest')
 
 app = FastAPI(title="Aegis-Agent")
@@ -123,6 +122,7 @@ async def run_action(action: str, token: str, username: str) -> dict:
             return {
                 "status": "success",
                 "execution_trace": issue.get("html_url"),
+                "agent_response": f"Successfully created issue #{issue.get('number')}.",
                 "reasoning_trace": f"Created issue #{issue.get('number')}: {title}"
             }
 
@@ -172,7 +172,6 @@ async def run_action(action: str, token: str, username: str) -> dict:
             return {"status": "success", "agent_response": text}
 
     return {"status": "error", "error": "Unknown action."}
-
 
 # --- Routes ---
 
@@ -260,8 +259,8 @@ async def ask_agent(request: Request, prompt: str):
             "https://api.github.com/user/repos?sort=pushed&per_page=5",
             headers={"Authorization": f"token {token}"}
         )
-        # Includes dates so the AI knows when you last pushed!
-        repos = [f"{r['name']} (Last pushed: {r.get('pushed_at', 'Unknown')[:10]})" for r in repos_res.json()[:5]]
+        repos_data = repos_res.json()
+        repos = [f"{r['name']} (Last pushed: {r.get('pushed_at', 'Unknown')[:10]})" for r in repos_data[:5]]
 
     context = f"""You are Aegis-Agent, a secure GitHub AI agent. Auth0 Token Vault handles all credentials.
 User: {user.get('name')} | GitHub: @{username}
@@ -280,7 +279,6 @@ RULES:
 - For chat/questions reply naturally in 1-3 sentences
 - If action needed, reply with ONLY the action line"""
 
-    # --- Simple AI Call ---
     try:
         ai_resp = ai_model.generate_content(context + "\n\nUser: " + prompt).text.strip()
     except Exception as e:
@@ -289,7 +287,7 @@ RULES:
             return {"status": "rate_limited", "agent_response": "[SYSTEM OVERLOAD] Aegis-Agent API quota exhausted. Please wait 60 seconds."}
         return {"error": f"AI error: {err}"}
 
-    # --- Robust Parser (Ignores markdown/bullets) ---
+    # --- Robust Parser ---
     action_line = None
     for line in ai_resp.split('\n'):
         cleaned_line = line.replace("`", "").replace("*", "").replace("- ", "").strip()
