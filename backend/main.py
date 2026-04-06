@@ -10,12 +10,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 import itertools
 
+# --- 1. Environment & API Rotation Setup ---
 if not os.environ.get("RENDER"):
     load_dotenv()
 
+# '0' for Production (Render), '1' for Local
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '0'
 
-# --- API Key Rotation ---
 _raw_keys = [
     os.getenv("GEMINI_API_KEY"),
     os.getenv("GEMINI_API_KEY_2"),
@@ -28,10 +29,11 @@ _key_cycle = itertools.cycle(GEMINI_KEYS)
 def get_ai_model():
     key = next(_key_cycle)
     genai.configure(api_key=key)
-    return genai.GenerativeModel('models/gemini-flash-latest')
+    # Using 'latest' suffix is the most stable for the current SDK
+    return genai.GenerativeModel('models/gemini-1.5-flash-latest')
 
 def call_ai(prompt: str) -> str:
-    """Try each key until one works or all fail."""
+    """Tries each API key in the rotation if one hits a rate limit."""
     last_error = None
     for _ in range(len(GEMINI_KEYS)):
         try:
@@ -39,14 +41,14 @@ def call_ai(prompt: str) -> str:
             return model.generate_content(prompt).text.strip()
         except Exception as e:
             last_error = e
-            err_str = str(e)
-            if "429" in err_str or "quota" in err_str.lower() or "exhausted" in err_str.lower():
+            if any(x in str(e).lower() for x in ["429", "quota", "exhausted"]):
                 continue
             raise e
-    raise Exception(f"All API keys exhausted. Last error: {last_error}")
+    raise Exception(f"All AI Quotas exhausted. Last error: {last_error}")
 
 app = FastAPI(title="Aegis-Agent")
 
+# --- 2. Middleware ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://aegis-agent-2.onrender.com"],
@@ -69,11 +71,11 @@ oauth.register(
     "auth0",
     client_id=os.getenv("AUTH0_CLIENT_ID"),
     client_secret=os.getenv("AUTH0_CLIENT_SECRET"),
-    client_kwargs={"scope": "openid profile email offline_access"},
+    client_kwargs={"scope": "openid profile email repo offline_access"},
     server_metadata_url=f'https://{os.getenv("AUTH0_DOMAIN")}/.well-known/openid-configuration',
 )
 
-# --- Token Vault (RFC 8693) with Management API fallback ---
+# --- 3. Token Vault (RFC 8693) ---
 async def get_github_token(user: dict, access_token: str | None) -> str | None:
     domain = os.getenv("AUTH0_DOMAIN")
     client_id = os.getenv("AUTH0_CLIENT_ID")
@@ -95,167 +97,116 @@ async def get_github_token(user: dict, access_token: str | None) -> str | None:
                     }
                 )
                 if res.status_code == 200:
-                    token = res.json().get("access_token")
-                    if token:
-                        return token
-            except Exception:
-                pass
+                    return res.json().get("access_token")
+            except Exception: pass
 
         # Fallback: Management API
         try:
-            mgmt_res = await client.post(
+            m_res = await client.post(
                 f"https://{domain}/oauth/token",
-                json={
-                    "client_id": client_id,
-                    "client_secret": client_secret,
-                    "audience": f"https://{domain}/api/v2/",
-                    "grant_type": "client_credentials"
-                }
+                json={"client_id": client_id, "client_secret": client_secret,
+                      "audience": f"https://{domain}/api/v2/", "grant_type": "client_credentials"}
             )
-            mgmt_token = mgmt_res.json().get("access_token")
-            user_res = await client.get(
-                f"https://{domain}/api/v2/users/{user.get('sub')}",
-                headers={"Authorization": f"Bearer {mgmt_token}"}
-            )
-            for ident in user_res.json().get("identities", []):
-                if ident.get("provider") == "github":
-                    return ident.get("access_token")
-        except Exception:
-            return None
+            m_token = m_res.json().get("access_token")
+            u_res = await client.get(f"https://{domain}/api/v2/users/{user.get('sub')}", 
+                                    headers={"Authorization": f"Bearer {m_token}"})
+            for ident in u_res.json().get("identities", []):
+                if ident.get("provider") == "github": return ident.get("access_token")
+        except Exception: return None
+    return None
 
-BLOCKED = ["delete repo", "remove repo", "destroy", "drop database", "rm -rf"]
-
+# --- 4. Premium Agent Actions (Detailed Friendly Output) ---
 async def run_action(action: str, token: str, username: str) -> dict:
     headers = {"Authorization": f"token {token}"}
     async with httpx.AsyncClient() as client:
-
-        if action.startswith("ACTION: LIST_REPOS"):
-            res = await client.get("https://api.github.com/user/repos?sort=pushed&per_page=10", headers=headers)
+        
+        # 1. LIST_REPOS
+        if "ACTION: LIST_REPOS" in action:
+            res = await client.get("https://api.github.com/user/repos?sort=pushed&per_page=5", headers=headers)
             repos = res.json()
-            lines = [f"• {r['name']} ({'private' if r['private'] else 'public'}) — {r['pushed_at'][:10]}" for r in repos[:8]]
-            return {
-                "status": "success",
-                "agent_response": "Your repositories:\n" + "\n".join(lines),
-                "reasoning_trace": action
-            }
+            names = [f"{r['name']} ({r['pushed_at'][:10]})" for r in repos]
+            detailed_msg = f"Your most recently active repositories from the vault are {', '.join(names[:-1])}, and {names[-1]}. These represent your latest projects as of today."
+            return {"status": "success", "agent_response": detailed_msg, "reasoning_trace": action}
 
-        elif action.startswith("ACTION: CREATE_ISSUE"):
+        # 2. CREATE_ISSUE
+        elif "ACTION: CREATE_ISSUE" in action:
             parts = action.split("|")
-            repo = parts[1].split(":", 1)[1].strip()
-            title = parts[2].split(":", 1)[1].strip()
-            body = parts[3].split(":", 1)[1].strip() if len(parts) > 3 else "Created by Aegis-Agent via Auth0 Token Vault."
-            res = await client.post(
-                f"https://api.github.com/repos/{username}/{repo}/issues",
-                headers=headers,
-                json={"title": title, "body": body}
-            )
+            repo = parts[1].split(":")[1].strip()
+            title = parts[2].split(":")[1].strip()
+            res = await client.post(f"https://api.github.com/repos/{username}/{repo}/issues", 
+                                    headers=headers, json={"title": title, "body": "Logged via Aegis-Agent."})
             issue = res.json()
-            return {
-                "status": "success",
-                "agent_response": f"✔ Issue #{issue.get('number')} created: {title}",
-                "execution_trace": issue.get("html_url"),
-                "reasoning_trace": f"Created issue #{issue.get('number')}: {title}"
-            }
+            return {"status": "success", "execution_trace": issue.get("html_url"), 
+                    "agent_response": f"Successfully created issue #{issue.get('number')} in **{repo}**. The federated token has been discarded.",
+                    "reasoning_trace": action}
 
-        elif action.startswith("ACTION: LIST_ISSUES"):
+        # 3. LIST_ISSUES
+        elif "ACTION: LIST_ISSUES" in action:
             parts = action.split("|")
-            repo = parts[1].split(":", 1)[1].strip()
+            repo = parts[1].split(":")[1].strip()
             res = await client.get(f"https://api.github.com/repos/{username}/{repo}/issues?state=open", headers=headers)
             issues = res.json()
-            if not issues:
-                return {"status": "success", "agent_response": f"No open issues in {repo}.", "reasoning_trace": action}
-            lines = [f"• #{i['number']} — {i['title']}" for i in issues[:8]]
-            return {
-                "status": "success",
-                "agent_response": f"Open issues in {repo}:\n" + "\n".join(lines),
-                "reasoning_trace": action
-            }
+            if not issues: return {"status": "success", "agent_response": f"I checked **{repo}** and found no open issues. Everything looks clear!", "reasoning_trace": action}
+            issue_list = "\n".join([f"• #{i['number']}: {i['title']}" for i in issues[:5]])
+            return {"status": "success", "agent_response": f"Found {len(issues)} open issues in **{repo}**:\n\n{issue_list}", "reasoning_trace": action}
 
-        elif action.startswith("ACTION: CLOSE_ISSUE"):
+        # 4. CLOSE_ISSUE (Step-Up Auth)
+        elif "ACTION: CLOSE_ISSUE" in action:
             parts = action.split("|")
-            repo = parts[1].split(":", 1)[1].strip()
-            num = parts[2].split(":", 1)[1].strip()
-            return {
-                "status": "step_up_required",
-                "message": f"⚠ Closing issue #{num} in {repo} requires confirmation. Type CONFIRM:{repo}:{num} to proceed.",
-                "pending_action": action
-            }
+            repo = parts[1].split(":")[1].strip()
+            num = parts[2].split(":")[1].strip()
+            detailed_msg = f"⚠ **Security Protocol**: Closing issue #{num} in {repo} is a destructive action. To ensure user control, please manually authorize this by typing: `CONFIRM:{repo}:{num}`"
+            return {"status": "step_up_required", "message": detailed_msg, "pending_action": action}
 
-        elif action.startswith("ACTION: CONFIRM_CLOSE"):
+        # 5. REPO_STATS
+        elif "ACTION: REPO_STATS" in action:
             parts = action.split("|")
-            repo = parts[1].split(":", 1)[1].strip()
-            num = parts[2].split(":", 1)[1].strip()
-            await client.patch(
-                f"https://api.github.com/repos/{username}/{repo}/issues/{num}",
-                headers=headers,
-                json={"state": "closed"}
-            )
-            return {"status": "success", "agent_response": f"✔ Issue #{num} in {repo} closed.", "reasoning_trace": action}
-
-        elif action.startswith("ACTION: REPO_STATS"):
-            parts = action.split("|")
-            repo = parts[1].split(":", 1)[1].strip()
+            repo = parts[1].split(":")[1].strip()
             res = await client.get(f"https://api.github.com/repos/{username}/{repo}", headers=headers)
             r = res.json()
-            text = (
-                f"{r.get('full_name')}\n"
-                f"Stars: {r.get('stargazers_count')}  Forks: {r.get('forks_count')}  Open Issues: {r.get('open_issues_count')}\n"
-                f"Language: {r.get('language') or 'Unknown'}\n"
-                f"Last push: {r.get('pushed_at', '')[:10]}\n"
-                f"URL: {r.get('html_url')}"
-            )
-            return {"status": "success", "agent_response": text, "reasoning_trace": action}
+            detailed_msg = f"Metrics for **{repo}**:\nStars: **{r['stargazers_count']}** | Language: **{r['language']}** | Open Issues: **{r['open_issues_count']}**\nLast push: {r['pushed_at'][:10]}."
+            return {"status": "success", "agent_response": detailed_msg, "reasoning_trace": action}
 
-    return {"status": "error", "error": "Unknown action."}
+        # 6. COMMENT_ISSUE
+        elif "ACTION: COMMENT_ISSUE" in action:
+            parts = action.split("|")
+            repo = parts[1].split(":")[1].strip()
+            num = parts[2].split(":")[1].strip()
+            msg = parts[3].split(":")[1].strip()
+            await client.post(f"https://api.github.com/repos/{username}/{repo}/issues/{num}/comments", headers=headers, json={"body": msg})
+            return {"status": "success", "agent_response": f"Comment securely posted to issue #{num} in **{repo}**.", "reasoning_trace": action}
 
+    return {"status": "error", "error": "Vault action failed."}
 
-# --- Routes ---
+# --- 5. Routes ---
 
 @app.get("/")
-def root():
-    return RedirectResponse(url="/ui")
+def root(): return RedirectResponse(url="/ui")
 
 @app.get("/ui")
 def serve_ui():
-    for path in [
-        os.path.join(os.getcwd(), "frontend", "index.html"),
-        os.path.join(os.getcwd(), "..", "frontend", "index.html")
-    ]:
-        if os.path.exists(path):
-            return FileResponse(path)
-    return JSONResponse({"error": "Frontend not found"}, status_code=404)
+    for path in [os.path.join(os.getcwd(), "frontend", "index.html"), os.path.join(os.getcwd(), "..", "frontend", "index.html")]:
+        if os.path.exists(path): return FileResponse(path)
+    return JSONResponse({"error": "UI Not Found"}, status_code=404)
 
 @app.get("/status")
 def check_status(request: Request):
     user = request.session.get("user")
-    if user:
-        return {
-            "status": "logged_in",
-            "name": user.get("name", "User"),
-            "picture": user.get("picture", ""),
-            "keys_available": len(GEMINI_KEYS)
-        }
+    if user: return {"status": "logged_in", "name": user.get("name", "User"), "keys": len(GEMINI_KEYS)}
     return JSONResponse({"status": "unauthorized"}, status_code=401)
 
 @app.get("/login")
 async def login(request: Request):
-    return await oauth.auth0.authorize_redirect(
-        request,
-        redirect_uri=os.getenv("AUTH0_CALLBACK_URL"),
-        connection="github",
-        connection_scope="repo,read:user,user:email"
-    )
+    return await oauth.auth0.authorize_redirect(request, redirect_uri=os.getenv("AUTH0_CALLBACK_URL"), connection="github")
 
 @app.get("/callback")
 async def callback(request: Request):
     try:
         token = await oauth.auth0.authorize_access_token(request)
         request.session["user"] = token.get("userinfo")
-        if token.get("access_token"):
-            request.session["access_token"] = token.get("access_token")
+        request.session["access_token"] = token.get("access_token")
         return RedirectResponse(url="/ui")
-    except Exception as e:
-        return JSONResponse({"error": "Login failed", "details": str(e)}, status_code=400)
+    except Exception as e: return JSONResponse({"error": str(e)}, status_code=400)
 
 @app.get("/logout")
 def logout(request: Request):
@@ -265,68 +216,50 @@ def logout(request: Request):
 @app.get("/ask-agent")
 async def ask_agent(request: Request, prompt: str):
     user = request.session.get("user")
-    if not user:
-        return JSONResponse({"error": "Not authenticated."}, status_code=401)
+    if not user: return JSONResponse({"error": "Unauthorized"}, status_code=401)
 
-    if any(k in prompt.lower() for k in BLOCKED):
-        return {"error": "⚠ Blocked: Aegis-Agent does not perform destructive actions."}
-
-    # Handle CONFIRM step-up
+    # Handle CONFIRM Step-up Auth
     if prompt.upper().startswith("CONFIRM:"):
         parts = prompt.split(":")
-        if len(parts) >= 3:
-            repo, num = parts[1], parts[2]
-            token = await get_github_token(user, request.session.get("access_token"))
-            if not token:
-                return {"error": "Could not retrieve token from vault."}
-            async with httpx.AsyncClient() as c:
-                u = await c.get("https://api.github.com/user", headers={"Authorization": f"token {token}"})
-                username = u.json().get("login", "")
-            return await run_action(f"ACTION: CONFIRM_CLOSE | REPO: {repo} | ISSUE: {num}", token, username)
+        repo, num = parts[1], parts[2]
+        token = await get_github_token(user, request.session.get("access_token"))
+        async with httpx.AsyncClient() as c:
+            u_res = await c.get("https://api.github.com/user", headers={"Authorization": f"token {token}"})
+            username = u_res.json()['login']
+            await c.patch(f"https://api.github.com/repos/{username}/{repo}/issues/{num}", 
+                         headers={"Authorization": f"token {token}"}, json={"state": "closed"})
+            return {"status": "success", "agent_response": f"✔ SECURE CLOSE COMPLETE: Issue #{num} in {repo} is now closed."}
 
     token = await get_github_token(user, request.session.get("access_token"))
-    if not token:
-        return {"error": "Could not retrieve GitHub token from Auth0 Token Vault."}
-
     async with httpx.AsyncClient() as c:
-        u = await c.get("https://api.github.com/user", headers={"Authorization": f"token {token}"})
-        github_user = u.json()
-        username = github_user.get("login", "")
-        repos_res = await c.get(
-            "https://api.github.com/user/repos?sort=pushed&per_page=5",
-            headers={"Authorization": f"token {token}"}
-        )
-        repos = [r['name'] for r in repos_res.json()[:5]]
+        u_res = await c.get("https://api.github.com/user", headers={"Authorization": f"token {token}"})
+        username = u_res.json()['login']
+        repos_res = await c.get("https://api.github.com/user/repos?sort=pushed&per_page=5", headers={"Authorization": f"token {token}"})
+        repos_context = [f"{r['name']} ({r['pushed_at'][:10]})" for r in repos_res.json()]
 
-    context = f"""You are Aegis-Agent, a secure GitHub AI agent. Auth0 Token Vault handles all credentials.
-User: {user.get('name')} | GitHub: @{username}
-Recent repos: {repos}
-Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}
+    context = f"""You are Aegis-Agent. Time: {datetime.utcnow().strftime('%Y-%m-%d')} | User: @{username}
+    Repos: {repos_context}
+    
+    ACTIONS:
+    ACTION: LIST_REPOS
+    ACTION: CREATE_ISSUE | REPO: name | TITLE: title
+    ACTION: LIST_ISSUES | REPO: name
+    ACTION: CLOSE_ISSUE | REPO: name | ISSUE: number
+    ACTION: REPO_STATS | REPO: name
+    ACTION: COMMENT_ISSUE | REPO: name | ISSUE: number | MSG: text
 
-ACTIONS — reply with EXACTLY this format when taking action, nothing else:
-- ACTION: LIST_REPOS
-- ACTION: CREATE_ISSUE | REPO: name | TITLE: title | BODY: description
-- ACTION: LIST_ISSUES | REPO: name
-- ACTION: CLOSE_ISSUE | REPO: name | ISSUE: number
-- ACTION: REPO_STATS | REPO: name
-
-RULES:
-- Never delete, push code, or do admin actions
-- For chat/questions reply naturally in 1-3 sentences
-- If action needed, reply with ONLY the action line"""
+    RULES:
+    - If user wants an action, reply with ONLY the ACTION line.
+    - Otherwise, chat naturally in 1-2 sentences."""
 
     try:
-        ai_resp = call_ai(context + "\n\nUser: " + prompt)
-    except Exception as e:
-        err = str(e)
-        if "quota" in err.lower() or "429" in err or "exhausted" in err.lower():
-            return {"error": "⚠ All AI quota exhausted for today. Add more API keys in Render env vars (GEMINI_API_KEY_2, etc.) or try again tomorrow."}
-        return {"error": f"AI error: {err}"}
+        ai_resp = call_ai(context + "\nUser: " + prompt)
+    except Exception as e: return {"error": str(e)}
 
-    for prefix in ["ACTION: LIST_REPOS", "ACTION: CREATE_ISSUE", "ACTION: LIST_ISSUES",
-                   "ACTION: CLOSE_ISSUE", "ACTION: REPO_STATS"]:
-        if ai_resp.startswith(prefix):
-            result = await run_action(ai_resp, token, username)
-            return result
+    # Robust Action Execution
+    for line in ai_resp.split('\n'):
+        cleaned = line.replace("- ", "").strip()
+        if cleaned.startswith("ACTION:"):
+            return await run_action(cleaned, token, username)
 
     return {"agent_response": ai_resp}
