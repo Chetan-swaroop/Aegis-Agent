@@ -29,7 +29,7 @@ _key_cycle = itertools.cycle(GEMINI_KEYS)
 def get_ai_model():
     key = next(_key_cycle)
     genai.configure(api_key=key)
-    return genai.GenerativeModel('gemini-1.5-flash')
+    return genai.GenerativeModel('gemini-flash-latest')
 
 def call_ai(prompt: str) -> str:
     """Try each key until one works or all fail."""
