@@ -1,311 +1,271 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
-    <title>Aegis-Agent</title>
+    <title>Aegis-Agent | Secure Assistant</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        glass: {
+                            base: 'rgba(13, 17, 23, 0.65)',
+                            light: 'rgba(255, 255, 255, 0.05)',
+                            border: 'rgba(255, 255, 255, 0.1)',
+                        },
+                        cyber: {
+                            green: '#3fb950',
+                            blue: '#58a6ff',
+                            red: '#f85149',
+                            yellow: '#e3b341',
+                            dark: '#0d1117'
+                        }
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'scan': 'scan 2s linear infinite',
+                    },
+                    keyframes: {
+                        scan: {
+                            '0%': { backgroundPosition: '100% 0' },
+                            '100%': { backgroundPosition: '-100% 0' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap');
+        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #0d1117;
-            color: #e6edf3;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #020617 100%);
+            /* Add an optional noise texture overlay or glowing orbs behind for maximum aesthetics */
+            position: relative;
+            overflow-x: hidden;
         }
 
-        .card {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 12px;
-            padding: 28px;
-            width: 100%;
-            max-width: 600px;
+        body::before {
+            content: '';
+            position: absolute;
+            top: -20%; left: -10%;
+            width: 50vw; height: 50vw;
+            background: radial-gradient(circle, rgba(88,166,255,0.08) 0%, transparent 60%);
+            z-index: -1;
+            filter: blur(40px);
         }
 
-        .header { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
-        .icon-box {
-            width: 42px; height: 42px; border-radius: 10px;
-            background: #1c2333; border: 1px solid #30363d;
-            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-        }
-        h1 { font-size: 20px; font-weight: 700; }
-        .tagline { font-size: 12px; color: #8b949e; margin-bottom: 20px; }
-        .divider { border: none; border-top: 1px solid #21262d; margin: 18px 0; }
-
-        /* Identity */
-        .identity {
-            display: flex; align-items: center; gap: 10px;
-            background: #0d2818; border: 1px solid #1a4731;
-            border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;
-        }
-        .avatar { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #2ea043; object-fit: cover; }
-        .avatar-init {
-            width: 32px; height: 32px; border-radius: 50%;
-            background: #1a4731; border: 2px solid #2ea043;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 13px; font-weight: 600; color: #3fb950; flex-shrink: 0;
-        }
-        .id-name { flex: 1; font-size: 13px; font-weight: 600; color: #3fb950; }
-        .id-sub { font-size: 11px; color: #2ea043; opacity: 0.6; font-family: monospace; }
-        .dot-green {
-            width: 8px; height: 8px; border-radius: 50%;
-            background: #3fb950; box-shadow: 0 0 6px #3fb950;
-            animation: blink 2s infinite;
-        }
-        .btn-sm {
-            font-size: 11px; color: #8b949e; background: none;
-            border: 1px solid #30363d; border-radius: 6px;
-            padding: 4px 10px; cursor: pointer; font-family: monospace;
-        }
-        .btn-sm:hover { color: #e6edf3; border-color: #6e7681; }
-
-        /* Keys indicator */
-        .keys-bar {
-            display: flex; align-items: center; gap: 6px;
-            font-size: 11px; color: #484f58; font-family: monospace;
-            margin-bottom: 14px; padding: 6px 10px;
-            background: #0d1117; border: 1px solid #21262d; border-radius: 6px;
-        }
-        .key-dot { width: 7px; height: 7px; border-radius: 50%; background: #3fb950; }
-        .key-dot.off { background: #30363d; }
-
-        /* Step-up */
-        .stepup {
-            background: #1c1500; border: 1px solid #3d2e00;
-            border-radius: 8px; padding: 10px 14px; margin-bottom: 12px;
-            font-size: 12px; color: #e3b341; font-family: monospace; line-height: 1.6;
+        body::after {
+            content: '';
+            position: absolute;
+            bottom: -20%; right: -10%;
+            width: 40vw; height: 40vw;
+            background: radial-gradient(circle, rgba(63,185,80,0.08) 0%, transparent 60%);
+            z-index: -1;
+            filter: blur(40px);
         }
 
-        /* Input */
-        .input-row { display: flex; gap: 8px; margin-bottom: 12px; }
-        input[type="text"] {
-            flex: 1; background: #0d1117; border: 1px solid #30363d;
-            border-radius: 8px; color: #e6edf3; font-size: 14px;
-            padding: 10px 14px; outline: none; font-family: inherit;
-            transition: border-color 0.15s;
-        }
-        input[type="text"]:focus { border-color: #58a6ff; }
-        input[type="text"]::placeholder { color: #484f58; }
-        .btn-run {
-            background: #238636; border: 1px solid #2ea043;
-            color: #fff; border-radius: 8px; padding: 10px 22px;
-            font-size: 14px; font-weight: 600; cursor: pointer;
-            transition: background 0.15s; white-space: nowrap;
-        }
-        .btn-run:hover:not(:disabled) { background: #2ea043; }
-        .btn-run:disabled { opacity: 0.45; cursor: not-allowed; }
-
-        /* Output */
-        .output-wrap {
-            background: #0d1117; border: 1px solid #21262d;
-            border-radius: 8px; overflow: hidden; margin-bottom: 10px;
-        }
-        .output-bar {
-            display: flex; align-items: center; gap: 6px;
-            padding: 8px 12px; background: #161b22;
-            border-bottom: 1px solid #21262d;
-        }
-        .dot { width: 10px; height: 10px; border-radius: 50%; }
-        .bar-label { font-size: 11px; color: #484f58; font-family: monospace; margin-left: 4px; }
-        .output-body {
-            padding: 14px; min-height: 80px;
-            font-family: monospace; font-size: 12px;
-            line-height: 1.75; color: #8b949e;
-            white-space: pre-wrap; word-break: break-word;
-        }
+        .font-mono { font-family: 'Fira Code', monospace; }
+        
+        /* Loading bar gradient */
         .loading-bar {
-            height: 2px; border-radius: 1px; margin-bottom: 8px;
             background: linear-gradient(90deg, #58a6ff, #3fb950, #58a6ff);
             background-size: 200% 100%;
-            animation: slide 1s linear infinite;
         }
-        .ok { color: #3fb950; font-weight: 600; }
-        .err { color: #f85149; }
-        .warn { color: #e3b341; }
-        .quota-err {
-            background: #1c0f00; border: 1px solid #3d2200;
-            border-radius: 6px; padding: 10px 12px; margin-top: 8px;
-            font-size: 11px; color: #e3b341; line-height: 1.6;
-        }
-        .link-btn {
-            display: inline-flex; align-items: center; gap: 5px;
-            margin-top: 8px; padding: 5px 12px;
-            background: #0d2818; border: 1px solid #1a4731;
-            border-radius: 6px; color: #3fb950;
-            text-decoration: none; font-size: 11px;
-        }
-        .link-btn:hover { background: #122518; }
 
-        /* Audit */
-        .audit-wrap {
-            background: #0d1117; border: 1px solid #21262d;
-            border-radius: 8px; overflow: hidden;
-        }
-        .audit-bar {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 7px 12px; background: #161b22;
-            border-bottom: 1px solid #21262d;
-        }
-        .audit-label { font-size: 10px; color: #484f58; font-family: monospace; text-transform: uppercase; letter-spacing: 0.08em; }
-        .audit-clr { font-size: 10px; color: #484f58; background: none; border: none; cursor: pointer; font-family: monospace; padding: 2px 6px; border-radius: 4px; }
-        .audit-clr:hover { background: #21262d; color: #8b949e; }
-        .audit-list { max-height: 130px; overflow-y: auto; padding: 4px 0; }
-        .arow { display: flex; gap: 8px; padding: 3px 12px; font-family: monospace; font-size: 11px; }
-        .atime { color: #484f58; flex-shrink: 0; }
-        .amsg { color: #8b949e; line-height: 1.4; }
-        .a-ok { color: #3fb950; }
-        .a-warn { color: #e3b341; }
-        .a-err { color: #f85149; }
-        .audit-empty { padding: 8px 12px; font-family: monospace; font-size: 11px; color: #484f58; }
-
-        /* Auth */
-        .auth-desc { font-size: 13px; color: #8b949e; line-height: 1.7; margin-bottom: 18px; }
-        .auth-desc strong { color: #58a6ff; }
-        .btn-gh {
-            width: 100%; padding: 11px; background: #21262d;
-            border: 1px solid #30363d; color: #e6edf3;
-            border-radius: 8px; font-size: 14px; font-weight: 600;
-            cursor: pointer; display: flex; align-items: center;
-            justify-content: center; gap: 10px; transition: background 0.15s, border-color 0.15s;
-        }
-        .btn-gh:hover { background: #30363d; border-color: #58a6ff; }
-
-        .footer { margin-top: 14px; font-size: 11px; color: #484f58; font-family: monospace; }
-
-        .hidden { display: none !important; }
-
-        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
-        @keyframes slide { 0%{background-position:100% 0} 100%{background-position:-100% 0} }
-
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 2px; }
+        /* Custom Scrollbar for Audit Log */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
     </style>
 </head>
-<body>
+<body class="text-gray-200 min-h-screen flex items-center justify-center p-4 antialiased">
 
-<div class="card">
-
-    <div class="header">
-        <div class="icon-box">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <rect x="6.5" y="8.5" width="11" height="10" rx="2.5" stroke="#58a6ff" stroke-width="1.4"/>
-                <rect x="9" y="11" width="2" height="2" rx="0.5" fill="#58a6ff"/>
-                <rect x="13" y="11" width="2" height="2" rx="0.5" fill="#58a6ff"/>
-                <path d="M9.5 15.5 Q12 17 14.5 15.5" stroke="#58a6ff" stroke-width="1.2" stroke-linecap="round" fill="none"/>
-                <line x1="12" y1="7" x2="12" y2="8.5" stroke="#58a6ff" stroke-width="1.4" stroke-linecap="round"/>
-                <circle cx="12" cy="6" r="1.2" fill="#58a6ff"/>
-                <line x1="6.5" y1="13" x2="4.5" y2="13" stroke="#58a6ff" stroke-width="1.4" stroke-linecap="round"/>
-                <line x1="17.5" y1="13" x2="19.5" y2="13" stroke="#58a6ff" stroke-width="1.4" stroke-linecap="round"/>
+<div class="w-full max-w-2xl bg-glass-base backdrop-blur-xl border border-glass-border rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] p-6 md:p-8 transition-all duration-300">
+    
+    <!-- Header -->
+    <header class="flex items-center gap-4 mb-2">
+        <div class="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0 shadow-inner">
+            <svg class="w-6 h-6 text-cyber-blue" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="6.5" y="8.5" width="11" height="10" rx="2.5" stroke="currentColor" stroke-width="1.5"/>
+                <rect x="9" y="11" width="2" height="2" rx="0.5" fill="currentColor"/>
+                <rect x="13" y="11" width="2" height="2" rx="0.5" fill="currentColor"/>
+                <path d="M9.5 15.5 Q12 17 14.5 15.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <line x1="12" y1="7" x2="12" y2="8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <circle cx="12" cy="6" r="1.5" fill="currentColor"/>
+                <line x1="6.5" y1="13" x2="4.5" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <line x1="17.5" y1="13" x2="19.5" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
             </svg>
         </div>
-        <h1>Aegis-Agent</h1>
-    </div>
-    <p class="tagline">Secure GitHub AI agent · Auth0 Token Vault</p>
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-white drop-shadow-sm">Aegis-Agent</h1>
+            <p class="text-sm text-gray-400">Secure GitHub AI agent · Federated Token Vault</p>
+        </div>
+    </header>
 
-    <hr class="divider">
+    <div class="h-px w-full bg-gradient-to-r from-transparent via-glass-border to-transparent my-6"></div>
 
-    <!-- Login -->
-    <div id="auth-section">
-        <p class="auth-desc">
-            Aegis-Agent uses <strong>Auth0 Token Vault</strong> to retrieve your GitHub credentials on demand via <strong>RFC 8693 token exchange</strong>. Your tokens are never stored in this app.
-        </p>
-        <button class="btn-gh" onclick="location.href='/login'">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+    <!-- Login Section -->
+    <div id="auth-section" class="flex flex-col gap-6">
+        <div class="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 text-sm text-blue-200/80 leading-relaxed shadow-inner">
+            Aegis-Agent operates using a <strong>Federated Token Vault</strong> to retrieve your GitHub credentials on-demand via <strong>RFC 8693 token exchange</strong>. 
+            No tokens are stored persistently. Everything is ephemeral.
+        </div>
+        
+        <button onclick="location.href='/login'" class="group relative w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white/5 border border-white/10 hover:border-cyber-blue/50 hover:bg-white/10 text-white rounded-xl font-semibold transition-all duration-300 overflow-hidden">
+            <div class="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:animate-[scan_1.5s_ease-in-out_infinite]"></div>
+            <svg class="w-5 h-5 text-gray-300 group-hover:text-white transition-colors" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
             </svg>
-            Sign in with GitHub via Auth0
+            <span class="relative z-10">Authenticate via GitHub</span>
         </button>
     </div>
 
-    <!-- Agent UI -->
-    <div id="agent-section" class="hidden">
-
-        <div class="identity">
-            <div class="avatar-init" id="av-init">?</div>
-            <img class="avatar hidden" id="av-img" src="" alt="avatar">
-            <div style="flex:1">
-                <div class="id-name" id="id-name">Authenticated</div>
-                <div class="id-sub">auth0 token vault · github</div>
+    <!-- Agent Interface -->
+    <div id="agent-section" class="hidden flex flex-col gap-5 text-sm">
+        
+        <!-- Identity Pill -->
+        <div class="flex items-center justify-between bg-green-950/20 border border-green-500/20 rounded-xl p-3 shadow-inner">
+            <div class="flex items-center gap-3">
+                <div id="av-init" class="w-9 h-9 rounded-full bg-green-900/40 border border-green-500/50 flex items-center justify-center font-bold text-cyber-green text-sm flex-shrink-0">?</div>
+                <img id="av-img" class="w-9 h-9 rounded-full border border-green-500/50 object-cover hidden shadow-[0_0_10px_rgba(63,185,80,0.2)]" src="" alt="avatar">
+                
+                <div class="flex flex-col">
+                    <span id="id-name" class="font-semibold text-cyber-green">Authenticated</span>
+                    <span class="text-[10px] text-green-500/60 font-mono tracking-wider uppercase">Vault Connected</span>
+                </div>
+                
+                <div class="w-2 h-2 rounded-full bg-cyber-green shadow-[0_0_8px_#3fb950] animate-pulse-fast ml-1"></div>
             </div>
-            <div class="dot-green"></div>
-            <button class="btn-sm" onclick="location.href='/logout'">logout</button>
+            
+            <button onclick="location.href='/logout'" class="px-3 py-1.5 rounded-lg border border-white/10 hover:border-gray-500 text-gray-400 hover:text-white font-mono text-xs transition-colors">
+                LOGOUT
+            </button>
         </div>
 
-        <!-- API Keys indicator -->
-        <div class="keys-bar" id="keys-bar">
-            <span id="key-dots"></span>
-            <span id="keys-text">checking api keys...</span>
+        <!-- API Keys Info -->
+        <div class="flex items-center gap-2 px-3 py-2 bg-black/20 border border-white/5 rounded-lg font-mono text-[10px] text-gray-400 shadow-inner w-max">
+            <span id="key-dots" class="flex gap-1"></span>
+            <span id="keys-text" class="tracking-wide">scanning keys...</span>
         </div>
 
-        <div id="stepup" class="stepup hidden"></div>
+        <!-- Step-up notification -->
+        <div id="stepup" class="hidden bg-yellow-950/30 border border-yellow-500/30 rounded-xl p-4 text-xs text-cyber-yellow font-mono shadow-[0_0_15px_rgba(227,179,65,0.1)] leading-relaxed"></div>
 
-        <div class="input-row">
-            <input type="text" id="prompt" placeholder="e.g. list my repos, create issue in my-repo..." autocomplete="off">
-            <button class="btn-run" id="run-btn" onclick="runAgent()">Run</button>
-        </div>
-
-        <div class="output-wrap">
-            <div class="output-bar">
-                <span class="dot" style="background:#f85149"></span>
-                <span class="dot" style="background:#e3b341"></span>
-                <span class="dot" style="background:#3fb950"></span>
-                <span class="bar-label">output</span>
+        <!-- CLI Input -->
+        <div class="flex gap-2">
+            <div class="relative flex-1 group">
+                <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-cyber-blue font-mono">
+                    >
+                </div>
+                <input type="text" id="prompt" placeholder="List my recent repos, create an issue..." class="w-full bg-black/40 border border-white/10 rounded-xl pl-8 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-cyber-blue/60 focus:ring-1 focus:ring-cyber-blue/30 transition-all shadow-inner font-mono text-[13px]" autocomplete="off">
             </div>
-            <div class="output-body" id="output">_ ready. vault connected.</div>
+            
+            <button id="run-btn" onclick="runAgent()" class="flex-shrink-0 px-6 py-3 bg-cyber-blue/10 hover:bg-cyber-blue/20 text-cyber-blue border border-cyber-blue/30 hover:border-cyber-blue/50 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase text-xs tracking-wider shadow-[0_0_15px_rgba(88,166,255,0.05)] hover:shadow-[0_0_20px_rgba(88,166,255,0.15)] focus:ring-2 focus:ring-cyber-blue/50 outline-none flex items-center justify-center gap-2 w-28">
+                <span>EXECUTE</span>
+            </button>
         </div>
 
-        <div class="audit-wrap">
-            <div class="audit-bar">
-                <span class="audit-label">audit log</span>
-                <button class="audit-clr" onclick="clearLog()">clear</button>
+        <!-- Output Terminal -->
+        <div class="flex flex-col bg-[#0a0d14]/80 border border-white/10 rounded-xl overflow-hidden shadow-2xl relative">
+            <!-- Window controls -->
+            <div class="flex items-center gap-1.5 px-4 py-2.5 bg-white/5 border-b border-white/5">
+                <div class="w-2.5 h-2.5 rounded-full bg-cyber-red/80"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-cyber-yellow/80"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-cyber-green/80"></div>
+                <span class="ml-2 font-mono text-[10px] text-gray-500 tracking-widest uppercase">agent-output</span>
             </div>
-            <div class="audit-list" id="audit-list">
-                <div class="audit-empty">No actions yet.</div>
+            
+            <div id="output" class="p-5 font-mono text-xs text-gray-300 min-h-[120px] max-h-[300px] overflow-y-auto whitespace-pre-wrap leading-relaxed selection:bg-cyber-blue/30 selection:text-white relative">
+                <span class="text-gray-500">_ waiting for instructions...</span>
+            </div>
+        </div>
+
+        <!-- Audit Log -->
+        <div class="flex flex-col bg-black/30 border border-white/5 rounded-xl overflow-hidden mt-1 shadow-inner">
+            <div class="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/5">
+                <span class="font-mono text-[10px] text-gray-400 tracking-widest uppercase">Audit Log</span>
+                <button onclick="clearLog()" class="text-[10px] font-mono text-gray-500 hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded border border-transparent hover:border-white/10">CLEAR</button>
+            </div>
+            <div id="audit-list" class="flex flex-col max-h-32 overflow-y-auto p-1 font-mono text-[10px]">
+                <div class="px-3 py-2 text-gray-500 italic">No activity registered.</div>
             </div>
         </div>
 
     </div>
 </div>
 
-<div class="footer">aegis-agent · auth0 token vault · rfc 8693</div>
+<!-- Background Elements -->
+<div class="fixed bottom-4 right-4 font-mono text-[9px] text-gray-500/50 tracking-widest pointer-events-none">
+    AEGIS_PROTOCOL v2.1 // OAUTH_VAULT_ENABLED
+</div>
 
 <script>
     let log = [];
 
-    function ts() { return new Date().toLocaleTimeString('en-US', {hour12:false}); }
+    // Format current time
+    function ts() { 
+        return new Date().toLocaleTimeString('en-US', {hour12:false, hour: '2-digit', minute:'2-digit', second:'2-digit'}); 
+    }
 
+    // Add entry to audit log
     function addLog(type, msg) {
         log.push({t: ts(), type, msg});
         const list = document.getElementById('audit-list');
+        
         list.innerHTML = log.slice().reverse().map(e => {
-            const cls = e.type==='ok' ? 'a-ok' : e.type==='warn' ? 'a-warn' : e.type==='err' ? 'a-err' : '';
-            const icon = e.type==='ok' ? '✔' : e.type==='warn' ? '⚠' : e.type==='err' ? '✘' : '·';
-            return `<div class="arow"><span class="atime">${e.t}</span><span class="${cls}">${icon}</span><span class="amsg">${e.msg}</span></div>`;
+            const colors = {
+                ok: 'text-cyber-green',
+                warn: 'text-cyber-yellow',
+                err: 'text-cyber-red',
+                info: 'text-cyber-blue'
+            };
+            const col = colors[e.type] || 'text-gray-400';
+            
+            const icons = {
+                ok: '[+]',
+                warn: '[!]',
+                err: '[-]',
+                info: '[*]'
+            };
+            const icon = icons[e.type] || '[-]';
+            
+            return `
+                <div class="flex items-start gap-2 px-3 py-1.5 hover:bg-white/5 rounded transition-colors group">
+                    <span class="text-gray-600 flex-shrink-0">${e.t}</span>
+                    <span class="${col} font-bold flex-shrink-0">${icon}</span>
+                    <span class="text-gray-400 group-hover:text-gray-300 break-words leading-tight">${e.msg}</span>
+                </div>
+            `;
         }).join('');
     }
 
     function clearLog() {
         log = [];
-        document.getElementById('audit-list').innerHTML = '<div class="audit-empty">No actions yet.</div>';
+        document.getElementById('audit-list').innerHTML = '<div class="px-3 py-2 text-gray-500 italic">No activity registered.</div>';
     }
 
     function renderKeyDots(count) {
         const dots = document.getElementById('key-dots');
         const text = document.getElementById('keys-text');
         let html = '';
-        for (let i = 0; i < 4; i++) {
-            html += `<span class="key-dot ${i < count ? '' : 'off'}" style="margin-right:3px"></span>`;
+        const limit = 4;
+        
+        for (let i = 0; i < limit; i++) {
+            const isActive = i < count;
+            html += `<span class="w-1.5 h-1.5 rounded-full ${isActive ? 'bg-cyber-green shadow-[0_0_5px_#3fb950]' : 'bg-gray-700'}"></span>`;
         }
+        
         dots.innerHTML = html;
-        text.textContent = count + ' api key' + (count !== 1 ? 's' : '') + ' active · ' + (count * 1500) + ' req/day';
+        text.textContent = `KEYS: ${count}/${limit} ACTIVE // ${(count * 1500).toLocaleString()} REQ/DAY`;
     }
 
+    // Initial Status Check
     fetch('/status', {credentials:'include'})
         .then(r => r.json())
         .then(d => {
@@ -313,20 +273,26 @@
                 document.getElementById('auth-section').classList.add('hidden');
                 document.getElementById('agent-section').classList.remove('hidden');
                 document.getElementById('id-name').textContent = d.name;
+                
                 if (d.picture) {
                     const img = document.getElementById('av-img');
                     img.src = d.picture;
                     img.classList.remove('hidden');
                     document.getElementById('av-init').classList.add('hidden');
                 } else {
-                    document.getElementById('av-init').textContent = d.name.charAt(0).toUpperCase();
+                    document.getElementById('av-init').textContent = (d.name || '?').charAt(0).toUpperCase();
                 }
-                renderKeyDots(d.keys_available || 1);
-                addLog('ok', 'Identity verified · ' + d.name);
-                addLog('ok', 'Token Vault connected · ' + (d.keys_available || 1) + ' api key(s) active');
+                
+                const avKeys = d.keys || d.keys_available || 1;
+                renderKeyDots(avKeys);
+                
+                addLog('info', `Vault connection established. Welcome, ${d.name}.`);
+                addLog('ok', `API Key rotation engine ready (${avKeys} keys active).`);
             }
-        }).catch(() => {});
+        })
+        .catch(err => console.error("Status check failed", err));
 
+    // Handle Enter Key
     document.getElementById('prompt').addEventListener('keypress', e => {
         if (e.key === 'Enter') { e.preventDefault(); runAgent(); }
     });
@@ -336,60 +302,126 @@
         const out = document.getElementById('output');
         const btn = document.getElementById('run-btn');
         const stepup = document.getElementById('stepup');
+        
         const val = inp.value.trim();
         if (!val) return;
 
+        // UI Prep
         btn.disabled = true;
+        btn.innerHTML = `
+            <svg class="animate-spin h-4 w-4 text-cyber-blue" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>PROCESSING</span>
+        `;
+        
         stepup.classList.add('hidden');
-        out.innerHTML = '<div class="loading-bar"></div><span style="color:#484f58">fetching token from vault...</span>';
-        addLog('info', 'Request: "' + val.slice(0,55) + (val.length>55?'…':'') + '"');
+        out.innerHTML = `
+            <div class="w-full h-0.5 rounded-full overflow-hidden mb-3 bg-white/5">
+                <div class="h-full loading-bar animate-scan w-[50%]"></div>
+            </div>
+            <div class="flex items-center gap-2 text-cyber-blue animate-pulse">
+                <span class="text-lg">⚡</span>
+                <span>Negotiating federated token & resolving AI intent...</span>
+            </div>
+        `;
+        
+        // Truncate for log
+        const shortReq = val.length > 50 ? val.slice(0,47) + '...' : val;
+        addLog('info', `INPUT: ${shortReq}`);
 
         fetch('/ask-agent?prompt=' + encodeURIComponent(val), {credentials:'include'})
             .then(r => r.json())
             .then(d => {
+                // Restore button
                 btn.disabled = false;
+                btn.innerHTML = '<span>EXECUTE</span>';
                 inp.value = '';
 
+                // Step-up Auth required
                 if (d.status === 'step_up_required') {
-                    stepup.textContent = d.message;
+                    // Make the step-up visually distinct
+                    stepup.innerHTML = `
+                        <div class="flex gap-3">
+                            <span class="text-xl">🛑</span>
+                            <div>
+                                <h4 class="font-bold uppercase tracking-wider text-yellow-400 mb-1">Authorization Required</h4>
+                                <div class="text-yellow-500/90 whitespace-pre-wrap">${d.message}</div>
+                            </div>
+                        </div>
+                    `;
                     stepup.classList.remove('hidden');
-                    out.innerHTML = '<span class="warn">[STEP-UP]</span> Sensitive action — confirm above.';
-                    addLog('warn', 'Step-up: ' + d.message);
-
-                } else if (d.status === 'success') {
-                    // ✅ FIX: always show agent_response first (repo list, issue list, etc.)
-                    let html = '<span class="ok">[✔ SUCCESS]</span>\n';
+                    
+                    out.innerHTML = `<span class="text-cyber-yellow font-bold uppercase tracking-widest">[INTERCEPTED]</span>\nAction halted pending step-up authentication. Please follow the instructions above.`;
+                    
+                    addLog('warn', `STEP-UP REQUIRED: Intervention halted process.`);
+                } 
+                // Success execution of Action
+                else if (d.status === 'success') {
+                    let html = `<div class="text-cyber-green font-bold uppercase tracking-widest mb-2">[SUCCESS] Vault operation completed.</div>`;
+                    
                     if (d.agent_response) {
-                        html += '\n' + d.agent_response + '\n';
+                        html += `<div class="text-gray-300 mt-2">${d.agent_response}</div>`;
                     } else if (d.reasoning_trace) {
-                        html += '<span style="color:#484f58;font-size:11px">' + d.reasoning_trace + '</span>\n';
+                        html += `<div class="text-gray-500 text-[11px] border-l-2 border-gray-700 pl-3 mt-2">${d.reasoning_trace}</div>`;
                     }
+                    
                     if (d.execution_trace) {
-                        html += '\n<a class="link-btn" href="' + d.execution_trace + '" target="_blank">↗ View on GitHub</a>';
+                        html += `
+                            <div class="mt-4">
+                                <a href="${d.execution_trace}" target="_blank" class="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-cyber-blue transition-colors text-xs font-semibold">
+                                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 2A10 10 0 002 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .08 1.53 1.04 1.53 1.04.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0012 2z"></path>
+                                    </svg>
+                                    View Repository Link
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                </a>
+                            </div>
+                        `;
                     }
+                    
                     out.innerHTML = html;
-                    addLog('ok', 'Action succeeded · ' + (d.reasoning_trace || d.agent_response || 'done'));
-
-                } else if (d.agent_response) {
-                    out.textContent = d.agent_response;
-                    addLog('ok', 'Response delivered');
-
-                } else if (d.error) {
-                    const isQuota = d.error.includes('quota') || d.error.includes('exhausted') || d.error.includes('API keys');
+                    
+                    const actionExtracted = d.reasoning_trace ? d.reasoning_trace.split('|')[0].trim() : 'Action';
+                    addLog('ok', `EXECUTED: ${actionExtracted}`);
+                } 
+                // Natural Conversation Response
+                else if (d.agent_response) {
+                    out.innerHTML = `<span class="text-cyber-blue font-bold uppercase tracking-widest mb-2">[AGENT]</span>\n<div class="text-gray-300 mt-2">${d.agent_response}</div>`;
+                    addLog('ok', `Agent responded naturally`);
+                } 
+                // Error handling
+                else if (d.error) {
+                    const isQuota = d.error.toLowerCase().includes('quota') || d.error.toLowerCase().includes('exhausted') || d.error.toLowerCase().includes('rate limit');
+                    
                     if (isQuota) {
-                        out.innerHTML = '<span class="err">[QUOTA]</span> ' + d.error +
-                            '<div class="quota-err">To fix: go to <a href="https://aistudio.google.com" target="_blank" style="color:#58a6ff">aistudio.google.com</a>, create a new API key with a different Google account, and add it as GEMINI_API_KEY_2 in your Render environment variables.</div>';
-                        addLog('err', 'Quota exhausted — add more API keys');
+                        out.innerHTML = `
+                            <div class="text-cyber-red font-bold uppercase tracking-widest mb-2">[QUOTA EXHAUSTED]</div>
+                            <div class="text-gray-400 mb-3">${d.error}</div>
+                            <div class="bg-red-950/30 border border-red-500/30 rounded p-3 text-red-400 text-xs shadow-inner">
+                                <strong class="text-white">Action Required:</strong> All rotating keys are exhausted. Add a new API key in Render environment variables.
+                            </div>
+                        `;
+                        addLog('err', `CRITICAL: Key quota rotation fully exhausted.`);
                     } else {
-                        out.innerHTML = '<span class="err">[ERROR]</span> ' + d.error;
-                        addLog('err', d.error);
+                        out.innerHTML = `<span class="text-cyber-red font-bold uppercase tracking-widest">[ERR]</span>\n<span class="text-gray-300">${d.error}</span>`;
+                        addLog('err', `Error encountered: ${d.error.substring(0,40)}...`);
                     }
                 }
+                else {
+                    out.innerHTML = `<span class="text-gray-500">Unrecognized response format from agent.</span>`;
+                }
             })
-            .catch(() => {
+            .catch(err => {
                 btn.disabled = false;
-                out.innerHTML = '<span class="err">[ERROR]</span> Connection lost.';
-                addLog('err', 'Connection lost');
+                btn.innerHTML = '<span>EXECUTE</span>';
+                
+                out.innerHTML = `
+                    <div class="text-cyber-red font-bold uppercase tracking-widest">[CONNECTION FAILED]</div>
+                    <div class="text-gray-400 mt-2">Unable to reach the Agent backend. Check connection.</div>
+                `;
+                addLog('err', `Network error while processing request.`);
             });
     }
 </script>

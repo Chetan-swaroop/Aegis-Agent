@@ -14,7 +14,7 @@ import itertools
 if not os.environ.get("RENDER"):
     load_dotenv()
 
-# '0' for Production (Render), '1' for Local
+# Set to '0' for Production (HTTPS required), '1' for Local (HTTP allowed)
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '0'
 
 _raw_keys = [
@@ -22,6 +22,7 @@ _raw_keys = [
     os.getenv("GEMINI_API_KEY_2"),
     os.getenv("GEMINI_API_KEY_3"),
     os.getenv("GEMINI_API_KEY_4"),
+    os.getenv("GEMINI_API_KEY_5"),
 ]
 GEMINI_KEYS = [k for k in _raw_keys if k]
 _key_cycle = itertools.cycle(GEMINI_KEYS)
@@ -29,8 +30,8 @@ _key_cycle = itertools.cycle(GEMINI_KEYS)
 def get_ai_model():
     key = next(_key_cycle)
     genai.configure(api_key=key)
-    # Using 'latest' suffix is the most stable for the current SDK
-    return genai.GenerativeModel('models/gemini-flash-latest')
+    # Using 'latest' for the most stable endpoint
+    return genai.GenerativeModel('models/gemini-1.5-flash-latest')
 
 def call_ai(prompt: str) -> str:
     """Tries each API key in the rotation if one hits a rate limit."""
@@ -125,7 +126,7 @@ async def run_action(action: str, token: str, username: str) -> dict:
             res = await client.get("https://api.github.com/user/repos?sort=pushed&per_page=5", headers=headers)
             repos = res.json()
             names = [f"{r['name']} ({r['pushed_at'][:10]})" for r in repos]
-            detailed_msg = f"Your most recently active repositories from the vault are {', '.join(names[:-1])}, and {names[-1]}. These represent your latest projects as of today."
+            detailed_msg = f"Your most recently active repositories from the vault are {', '.join(names[:-1])}, and {names[-1]}."
             return {"status": "success", "agent_response": detailed_msg, "reasoning_trace": action}
 
         # 2. CREATE_ISSUE
@@ -146,16 +147,16 @@ async def run_action(action: str, token: str, username: str) -> dict:
             repo = parts[1].split(":")[1].strip()
             res = await client.get(f"https://api.github.com/repos/{username}/{repo}/issues?state=open", headers=headers)
             issues = res.json()
-            if not issues: return {"status": "success", "agent_response": f"I checked **{repo}** and found no open issues. Everything looks clear!", "reasoning_trace": action}
+            if not issues: return {"status": "success", "agent_response": f"No open issues in **{repo}**.", "reasoning_trace": action}
             issue_list = "\n".join([f"• #{i['number']}: {i['title']}" for i in issues[:5]])
-            return {"status": "success", "agent_response": f"Found {len(issues)} open issues in **{repo}**:\n\n{issue_list}", "reasoning_trace": action}
+            return {"status": "success", "agent_response": f"Open issues in **{repo}**:\n\n{issue_list}", "reasoning_trace": action}
 
         # 4. CLOSE_ISSUE (Step-Up Auth)
         elif "ACTION: CLOSE_ISSUE" in action:
             parts = action.split("|")
             repo = parts[1].split(":")[1].strip()
             num = parts[2].split(":")[1].strip()
-            detailed_msg = f"⚠ **Security Protocol**: Closing issue #{num} in {repo} is a destructive action. To ensure user control, please manually authorize this by typing: `CONFIRM:{repo}:{num}`"
+            detailed_msg = f"⚠ **Security Protocol**: Closing issue #{num} in {repo} is a destructive action. Type: `CONFIRM:{repo}:{num}`"
             return {"status": "step_up_required", "message": detailed_msg, "pending_action": action}
 
         # 5. REPO_STATS
@@ -164,7 +165,7 @@ async def run_action(action: str, token: str, username: str) -> dict:
             repo = parts[1].split(":")[1].strip()
             res = await client.get(f"https://api.github.com/repos/{username}/{repo}", headers=headers)
             r = res.json()
-            detailed_msg = f"Metrics for **{repo}**:\nStars: **{r['stargazers_count']}** | Language: **{r['language']}** | Open Issues: **{r['open_issues_count']}**\nLast push: {r['pushed_at'][:10]}."
+            detailed_msg = f"Metrics for **{repo}**:\nStars: **{r['stargazers_count']}** | Language: **{r['language']}** | Open Issues: **{r['open_issues_count']}**."
             return {"status": "success", "agent_response": detailed_msg, "reasoning_trace": action}
 
         # 6. COMMENT_ISSUE
@@ -192,7 +193,14 @@ def serve_ui():
 @app.get("/status")
 def check_status(request: Request):
     user = request.session.get("user")
-    if user: return {"status": "logged_in", "name": user.get("name", "User"), "keys": len(GEMINI_KEYS)}
+    if user: 
+        # Requirement 1: Return key count and picture for the new UI
+        return {
+            "status": "logged_in", 
+            "name": user.get("name", "User"), 
+            "picture": user.get("picture", ""),
+            "keys": len(GEMINI_KEYS)
+        }
     return JSONResponse({"status": "unauthorized"}, status_code=401)
 
 @app.get("/login")
@@ -228,7 +236,7 @@ async def ask_agent(request: Request, prompt: str):
             username = u_res.json()['login']
             await c.patch(f"https://api.github.com/repos/{username}/{repo}/issues/{num}", 
                          headers={"Authorization": f"token {token}"}, json={"state": "closed"})
-            return {"status": "success", "agent_response": f"✔ SECURE CLOSE COMPLETE: Issue #{num} in {repo} is now closed."}
+            return {"status": "success", "agent_response": f"✔ SECURE CLOSE COMPLETE: Issue #{num} in {repo} is now closed.", "reasoning_trace": "ACTION: CONFIRM_CLOSE"}
 
     token = await get_github_token(user, request.session.get("access_token"))
     async with httpx.AsyncClient() as c:
@@ -260,6 +268,9 @@ async def ask_agent(request: Request, prompt: str):
     for line in ai_resp.split('\n'):
         cleaned = line.replace("- ", "").strip()
         if cleaned.startswith("ACTION:"):
-            return await run_action(cleaned, token, username)
+            # Requirement 2: Ensure reasoning_trace is returned for the Audit Log
+            result = await run_action(cleaned, token, username)
+            if "reasoning_trace" not in result: result["reasoning_trace"] = cleaned
+            return result
 
     return {"agent_response": ai_resp}
