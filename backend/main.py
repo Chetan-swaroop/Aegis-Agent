@@ -30,7 +30,7 @@ def get_ai_model():
     key = next(_key_cycle)
     genai.configure(api_key=key)
     # Using 'latest' suffix is the most stable for the current SDK
-    return genai.GenerativeModel('models/gemini-1.5-flash-latest')
+    return genai.GenerativeModel('models/gemini-flash-latest')
 
 def call_ai(prompt: str) -> str:
     """Tries each API key in the rotation if one hits a rate limit."""
