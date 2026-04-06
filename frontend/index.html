@@ -357,11 +357,18 @@
                     addLog('warn', 'Step-up: ' + d.message);
 
                 } else if (d.status === 'success') {
+                    // ✅ FIX: always show agent_response first (repo list, issue list, etc.)
                     let html = '<span class="ok">[✔ SUCCESS]</span>\n';
-                    if (d.reasoning_trace) html += '<span style="color:#484f58;font-size:11px">' + d.reasoning_trace + '</span>\n';
-                    if (d.execution_trace) html += '\n<a class="link-btn" href="' + d.execution_trace + '" target="_blank">↗ View on GitHub</a>';
+                    if (d.agent_response) {
+                        html += '\n' + d.agent_response + '\n';
+                    } else if (d.reasoning_trace) {
+                        html += '<span style="color:#484f58;font-size:11px">' + d.reasoning_trace + '</span>\n';
+                    }
+                    if (d.execution_trace) {
+                        html += '\n<a class="link-btn" href="' + d.execution_trace + '" target="_blank">↗ View on GitHub</a>';
+                    }
                     out.innerHTML = html;
-                    addLog('ok', 'Action succeeded · ' + (d.reasoning_trace || 'done'));
+                    addLog('ok', 'Action succeeded · ' + (d.reasoning_trace || d.agent_response || 'done'));
 
                 } else if (d.agent_response) {
                     out.textContent = d.agent_response;
