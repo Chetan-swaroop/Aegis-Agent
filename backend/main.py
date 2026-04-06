@@ -8,43 +8,16 @@ from authlib.integrations.starlette_client import OAuth
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
-import itertools
 
 if not os.environ.get("RENDER"):
     load_dotenv()
 
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '0'
 
-# --- API Key Rotation ---
-# Add GEMINI_API_KEY_2, GEMINI_API_KEY_3 in Render env vars for rotation
-_raw_keys = [
-    os.getenv("GEMINI_API_KEY"),
-    os.getenv("GEMINI_API_KEY_2"),
-    os.getenv("GEMINI_API_KEY_3"),
-    os.getenv("GEMINI_API_KEY_4"),
-]
-GEMINI_KEYS = [k for k in _raw_keys if k]  # Only use keys that exist
-_key_cycle = itertools.cycle(GEMINI_KEYS)
-
-def get_ai_model():
-    key = next(_key_cycle)
-    genai.configure(api_key=key)
-    return genai.GenerativeModel('gemini-flash-latest')
-
-def call_ai(prompt: str) -> str:
-    """Try each key until one works or all fail."""
-    last_error = None
-    for _ in range(len(GEMINI_KEYS)):
-        try:
-            model = get_ai_model()
-            return model.generate_content(prompt).text.strip()
-        except Exception as e:
-            last_error = e
-            err_str = str(e)
-            if "429" in err_str or "quota" in err_str.lower() or "exhausted" in err_str.lower():
-                continue  # Try next key
-            raise e  # Non-quota error, raise immediately
-    raise Exception(f"All API keys exhausted. Last error: {last_error}")
+# --- Simple, Clean AI Setup (Reverted to Morning Version) ---
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+# Using 'latest' so you don't get the 404 error again
+ai_model = genai.GenerativeModel('gemini-flash-latest')
 
 app = FastAPI(title="Aegis-Agent")
 
@@ -74,7 +47,7 @@ oauth.register(
     server_metadata_url=f'https://{os.getenv("AUTH0_DOMAIN")}/.well-known/openid-configuration',
 )
 
-# --- Token Vault (RFC 8693) with Management API fallback ---
+# --- Auth0 Token Vault (RFC 8693) ---
 async def get_github_token(user: dict, access_token: str | None) -> str | None:
     domain = os.getenv("AUTH0_DOMAIN")
     client_id = os.getenv("AUTH0_CLIENT_ID")
@@ -224,8 +197,7 @@ def check_status(request: Request):
         return {
             "status": "logged_in",
             "name": user.get("name", "User"),
-            "picture": user.get("picture", ""),
-            "keys_available": len(GEMINI_KEYS)
+            "picture": user.get("picture", "")
         }
     return JSONResponse({"status": "unauthorized"}, status_code=401)
 
@@ -288,7 +260,8 @@ async def ask_agent(request: Request, prompt: str):
             "https://api.github.com/user/repos?sort=pushed&per_page=5",
             headers={"Authorization": f"token {token}"}
         )
-        repos = [r['name'] for r in repos_res.json()[:5]]
+        # Includes dates so the AI knows when you last pushed!
+        repos = [f"{r['name']} (Last pushed: {r.get('pushed_at', 'Unknown')[:10]})" for r in repos_res.json()[:5]]
 
     context = f"""You are Aegis-Agent, a secure GitHub AI agent. Auth0 Token Vault handles all credentials.
 User: {user.get('name')} | GitHub: @{username}
@@ -307,19 +280,29 @@ RULES:
 - For chat/questions reply naturally in 1-3 sentences
 - If action needed, reply with ONLY the action line"""
 
+    # --- Simple AI Call ---
     try:
-        ai_resp = call_ai(context + "\n\nUser: " + prompt)
+        ai_resp = ai_model.generate_content(context + "\n\nUser: " + prompt).text.strip()
     except Exception as e:
         err = str(e)
         if "quota" in err.lower() or "429" in err or "exhausted" in err.lower():
-            return {"error": "⚠ All AI quota exhausted for today. Add more API keys in Render env vars (GEMINI_API_KEY_2, etc.) or try again tomorrow."}
+            return {"status": "rate_limited", "agent_response": "[SYSTEM OVERLOAD] Aegis-Agent API quota exhausted. Please wait 60 seconds."}
         return {"error": f"AI error: {err}"}
 
-    for prefix in ["ACTION: LIST_REPOS", "ACTION: CREATE_ISSUE", "ACTION: LIST_ISSUES",
-                   "ACTION: CLOSE_ISSUE", "ACTION: REPO_STATS"]:
-        if ai_resp.startswith(prefix):
-            result = await run_action(ai_resp, token, username)
-            result["reasoning_trace"] = ai_resp
-            return result
+    # --- Robust Parser (Ignores markdown/bullets) ---
+    action_line = None
+    for line in ai_resp.split('\n'):
+        cleaned_line = line.replace("`", "").replace("*", "").replace("- ", "").strip()
+        if cleaned_line.startswith("ACTION:"):
+            action_line = cleaned_line
+            break
+
+    if action_line:
+        for prefix in ["ACTION: LIST_REPOS", "ACTION: CREATE_ISSUE", "ACTION: LIST_ISSUES",
+                       "ACTION: CLOSE_ISSUE", "ACTION: REPO_STATS"]:
+            if action_line.startswith(prefix):
+                result = await run_action(action_line, token, username)
+                result["reasoning_trace"] = action_line
+                return result
 
     return {"agent_response": ai_resp}
